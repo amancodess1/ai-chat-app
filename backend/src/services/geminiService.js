@@ -1,32 +1,39 @@
-// filepath: /Users/aman/Desktop/chat-app2/ai-chat-app/src/services/geminiService.js
-import fetch from 'node-fetch';
+// Updated: backend/src/services/geminiService.js
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 class GeminiService {
-    constructor(apiKey) {
-        this.apiKey = apiKey;
-        this.apiUrl = 'https://api.gemini.com/v1'; // Replace with the actual Gemini API URL
-    }
-
-    async fetchResponse(message) {
-        const response = await fetch(`${this.apiUrl}/chat`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify({ message })
-        });
-
-        if (!response.ok) {
-            throw new Error('Error fetching response from Gemini API');
+    // UPDATED: Added systemInstruction to the constructor
+    constructor(apiKey, systemInstruction = '') {
+        if (!apiKey) {
+            throw new Error('Gemini API key is missing.');
         }
-
-        return await response.json();
+        this.googleAI = new GoogleGenerativeAI(apiKey);
+        
+        // UPDATED: Pass the systemInstruction when getting the model
+        this.model = this.googleAI.getGenerativeModel({ 
+            model: 'gemini-2.5-pro',
+            systemInstruction: systemInstruction,
+        });
     }
 
-    processMessage(message) {
-        // Add any preprocessing logic for the message if needed
-        return message.trim();
+    startChat(history = []) {
+        return this.model.startChat({
+            history: history,
+            generationConfig: {
+                maxOutputTokens: 2048,
+            },
+        });
+    }
+
+    async fetchResponse(chatSession, message) {
+        try {
+            const result = await chatSession.sendMessage(message);
+            const response = result.response;
+            return response.text();
+        } catch (error) {
+            console.error('Error in fetchResponse:', error);
+            throw new Error('Failed to get a response from the Gemini API.');
+        }
     }
 }
 
